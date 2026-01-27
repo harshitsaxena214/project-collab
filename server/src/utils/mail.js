@@ -85,3 +85,4 @@ const forgotPasswordMailGenContent = (username, passwordResetUrl) => {
 //         username,``
 //     )
 // })
+export { sendMail }
