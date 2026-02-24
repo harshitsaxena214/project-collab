@@ -32,21 +32,20 @@ export const validateProjectPermission = (roles = []) =>
   asyncHandler(async (req, res, next) => {
     const { projectId } = req.params;
 
-    if (!projectId) {
-      throw new ApiError(401, "Invalid projectId");
-    }
+    if (!projectId) throw new ApiError(400, "projectId is required");
 
     const projectMember = await ProjectMember.findOne({
-      project: mongoose.Types.ObjectId(projectId),
-      user: mongoose.Types.ObjectId(req.user._id),
+      project: new mongoose.Types.ObjectId(projectId),
+      user: new mongoose.Types.ObjectId(req.user._id),
     });
 
-    if (!projectMember) {
-      throw new ApiError(401, "Project not found");
+    if (!projectMember) throw new ApiError(403, "You are not a member of this project");
+
+    // Check if the member's role is allowed
+    if (roles.length && !roles.includes(projectMember.role)) {
+      throw new ApiError(403, "You do not have permission to perform this action");
     }
 
-    const givenRole = projectMember?.role;
-
-    req.user.role = givenRole;
+    req.user.role = projectMember.role;
     next();
   });

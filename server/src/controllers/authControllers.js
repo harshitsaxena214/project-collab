@@ -5,19 +5,37 @@ import { sendMail } from "../utils/mail.js";
 import { userRegistrationValidator } from "../validators/index.js";
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, username, password, fullname } = req.body || {};
-  userRegistrationValidator(req.body);
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return ApiResponse(400, { message: "User already Exists" });
-  }
-  const user = new User({ username, email, password, fullname });
+  const { email, username, password, fullname } = req.body;
 
-  user.save();
-  sendMail(
-    user.email,
-    (mailGenContent = emailVerificationMailGenContent(username)),
+  const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+  if (existingUser) throw new ApiError(409, "User with email or username already exists");
+
+  const user = await User.create({ username, email, password, fullname });
+
+  // Generate email verification token
+  const { hashedToken, unHashedToken, tokenExpiry } = user.generateTemporaryToken();
+
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpiry = tokenExpiry;
+  await user.save({ validateBeforeSave: false });
+
+  // Send verification email
+  await sendMail({
+    email: user.email,
+    subject: "Verify your email",
+    mailGenContent: emailVerificationMailGenContent(
+      user.username,
+      `${process.env.BASE_URL}/api/users/verify-email/${unHashedToken}`,
+    ),
+  });
+
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
   );
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, createdUser, "User registered successfully. Please verify your email."));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
