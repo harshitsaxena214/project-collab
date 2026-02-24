@@ -26,7 +26,7 @@ const getNoteById = async (req, res) => {
 
   const note = await Note.findById(noteId).populate(
     "createdBy",
-    " username fullname avatar",
+    "username fullname avatar",
   );
 
   if (!note) {

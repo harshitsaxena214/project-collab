@@ -48,5 +48,5 @@ export const validateProjectPermission = (roles = []) =>
     const givenRole = projectMember?.role;
 
     req.user.role = givenRole;
-    next()
+    next();
   });
